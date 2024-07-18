@@ -45,18 +45,18 @@ class Encoder(nn.Module):
             src = layer(src, src_mask)
         return src
 
-    def get_params(self, deep=True):
-        return {
-            'num_layers': self.num_layers,
-            'd_ff': self.d_ff,
-            'dropout': self.dropout
-        }
+    # def get_params(self, deep=True):
+    #     return {
+    #         'num_layers': self.num_layers,
+    #         'd_ff': self.d_ff,
+    #         'dropout': self.dropout
+    #     }
 
-    def set_params(self, **params):
-        for param, value in params.items():
-            setattr(self, param, value)
-        self.model = self.forward()
-        return self
+    # def set_params(self, **params):
+    #     for param, value in params.items():
+    #         setattr(self, param, value)
+    #     self.model = self.forward()
+    #     return self
 
 class Scaling():
     """Treats data as series
@@ -75,13 +75,6 @@ class Scaling():
         scaled_data = (data - mean) / std_dev
         return scaled_data
     
-    # def robust_scaling(data):
-    #     median = data.median()
-    #     q1 = data.quantile(0.25)
-    #     q3 = data.quantile(0.75)
-    #     iqr = q3 - q1
-    #     scaled_data = (data - median) / iqr
-    #     return scaled_data
 
     def robust_scaling(data):
         median = np.nanmedian(data)
@@ -96,37 +89,48 @@ class Scaling():
         return scaled_data.fillna(0)
 
 
+def preprocess_data(train_df,test_df=None,target=None,id=None):
+    # self.combined_df = pd.concat([self.train_df.drop, self.test_df], axis=0)
+    missing=train_df.isnull().sum().sort_values(ascending=False)
+    missing=missing.drop(missing[missing==0].index)
+    df = pd.DataFrame(missing)
+    target = train_df[target]
+    combined_df = pd.concat([train_df,test_df],axis=0)
+    combined_df = combined_df.drop([id,target],inplace=True,axis=1)
+    combined_df = combined_df.drop(missing.keys(),inplace=True,axis=1)
+    
+    return combined_df, target
+
+
 class Tab_Former(nn.Module):
     """
     A model Using Encoders On Categorical Features And Scaling On Numerical Features
-      And Also Displayinng It's Relationships With T-sne Plot    
+      And Also Displayinng It's Relationships With T-sne Plot  
+
+      Args: 
+        Combined_df, target,  random_seed
     """
-    def __init__(self,train_df,target:str, id :str, test_df = None, random_seed= 24):
+    def __init__(self,combined_df,target, random_seed= 24):
+        """Accepts datasets target it's Data Id"""
         super(Tab_Former, self).__init__()
-        self.train_df = train_df
-        self.test_df = test_df
+        self.combined_df = combined_df
+        # self.test_df = test_df
         self.target = target
         self.random_seed = random_seed
-        self.id = id
-                
-
-    def preprocess_data(self):
-        # self.combined_df = pd.concat([self.train_df.drop, self.test_df], axis=0)
-        missing=self.train_df.isnull().sum().sort_values(ascending=False)
-        missing=missing.drop(missing[missing==0].index)
-        df = pd.DataFrame(missing)
-        self.label = self.train_df[self.target]
-        self.combined_df = pd.concat([self.train_df,self.test_df],axis=0);
-        self.combined_df.drop([self.id,self.target],inplace=True,axis=1)
-        self.combined_df.drop(missing.keys(),inplace=True,axis=1)
-
-        if self.test_df != None:
-            self.test_id = self.test_df[self.id]
-        
-        return self.combined_df, self.label
+        self.device = 'cuda' if torch.cuda.is_available() else 'cpu'
+        # self.id = id
        
     
     def cat_num_split(self,combined_df):
+        """
+        Takes the combined_df and split it into categorical and numerical features respectively.
+
+        Args:
+            combined_df (DataFrame).
+
+        Returns:
+            Categorical features are object type and numerical features are float or integers.
+        """
 
         # check the numbers of categorical features in train_df
         self.cat_cols = combined_df.select_dtypes(include='object').columns.tolist()
@@ -142,6 +146,12 @@ class Tab_Former(nn.Module):
         return self.cat_cols, self.num_cols
 
     def feature_map(self):
+        """
+        Mapping each features to a unique value.
+
+        Returns:
+            Dictionary : Features and Maps (Dictionary).
+        """
         kill = []
         for i in self.cat_cols:
             kill.append(list(self.combined_df[i].unique()))
@@ -161,6 +171,12 @@ class Tab_Former(nn.Module):
         return self.feature_mapping
 
     def label_encode(self):
+        """
+        Encoding each features to a numerical labels.
+
+        Returns:
+            Pandas Series : Numerical labels.
+        """
         lc = LabelEncoder()
         for i in self.cat_cols:
             # print(i)
@@ -172,12 +188,21 @@ class Tab_Former(nn.Module):
     
     def encode(self,encoder = None,cat_col_embedding = None):
         
-        # print("Mapped Cat_col",mapped_cat_col_indices_values_df.head())1
+        """
+        Encode Categorical Features.
+
+        Args:
+            encoder : Inbuilt encoder or your defined encoder.
+            cat_col_embedding : Feature_map/label_encoder.
+
+        Returns:
+            DataFrame: Encoded Values.
+        """
+        # print("Mapped Cat_col",mapped_cat_col_indices_values_df.head())
 
         # Map the values in train_df to numerical indices using feature_map
         if cat_col_embedding == None:
             self.mapped_cat_col_indices_values_df = self.combined_df[self.cat_cols].applymap(lambda x: self.feature_mapping.get(x, x))
-
 
         else:
            self.mapped_cat_col_indices_values_df = self.label_encoded
@@ -186,7 +211,7 @@ class Tab_Former(nn.Module):
         if encoder:
             encoder = encoder
         else:
-            encoder = Encoder(d_model=len(self.cat_cols))
+            encoder = Encoder(d_model=len(self.cat_cols)).self.device()
 
         # Example input tensor
         src_input = self.mapped_cat_col_indices_values_df.values
@@ -198,7 +223,7 @@ class Tab_Former(nn.Module):
 
         torch.manual_seed(self.random_seed)
         for i in np.arange(len(src_input)):
-            new.append(encoder(src_input[i].unsqueeze(dim=0)))
+            new.append(encoder(src_input[i].unsqueeze(dim=0)).self.device())
 
 
         for i in new:
@@ -216,7 +241,16 @@ class Tab_Former(nn.Module):
 
 
     def preprocess(self, scaling,encoded_values):
+        """
+        Encode Categorical Features.
 
+        Args:
+            scaling : Inbuilt encoder or your defined encoder.
+            cat_col_embedding : Feature_map/label_encoder.
+
+        Returns:
+            DataFrame: train, test.
+        """
         numeric_cols_indices_values_df = pd.DataFrame(self.combined_df[self.num_cols].values, columns=self.combined_df[self.num_cols].columns)
         # print("Continouns Variable\n",numeric_cols_indices_values_df.tail(2))
 
@@ -245,6 +279,16 @@ class Tab_Former(nn.Module):
         return train, test
     
     def tsne_plot(self,encoded_values, values= 500):
+        """
+        Encode Categorical Features.
+
+        Args:
+            encoded_values : encoded values.
+            values (int) : Numbers of features to plot.
+
+        Returns:
+            DataFrame: Encoded Values.
+        """
         data_np = self.mapped_cat_col_indices_values_df.values[:values]
 
         # Perform dimensionality reduction using t-SNE
@@ -302,6 +346,7 @@ def run_model(model,train, target):
 
     model_r2_score = r2_score(y_train,y_train_pred)
     model_mse = mean_squared_error(y_train,y_train_pred)
+    model_train_rmse = np.sqrt(model_mse)
     # model_log_rmse = log_rmse(y_train,y_train_pred)
     
 
