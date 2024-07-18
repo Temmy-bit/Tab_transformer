@@ -223,7 +223,7 @@ class Tab_Former(nn.Module):
 
         torch.manual_seed(self.random_seed)
         for i in np.arange(len(src_input)):
-            new.append(encoder(src_input[i].unsqueeze(dim=0)).to.(self.device()))
+            new.append(encoder(src_input[i].unsqueeze(dim=0)).to(self.device()))
 
 
         for i in new:
