@@ -211,7 +211,7 @@ class Tab_Former(nn.Module):
         if encoder:
             encoder = encoder
         else:
-            encoder = Encoder(d_model=len(self.cat_cols)).self.device()
+            encoder = Encoder(d_model=len(self.cat_cols)).to(self.device())
 
         # Example input tensor
         src_input = self.mapped_cat_col_indices_values_df.values
@@ -223,7 +223,7 @@ class Tab_Former(nn.Module):
 
         torch.manual_seed(self.random_seed)
         for i in np.arange(len(src_input)):
-            new.append(encoder(src_input[i].unsqueeze(dim=0)).self.device())
+            new.append(encoder(src_input[i].unsqueeze(dim=0)).to.(self.device()))
 
 
         for i in new:
