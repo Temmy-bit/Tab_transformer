@@ -117,6 +117,7 @@ class Tab_Former(nn.Module):
         # self.test_df = test_df
         self.target = target
         self.random_seed = random_seed
+        self.device = 'cuda' if torch.cuda.is_available() else 'cpu'
         # self.id = id
        
     
@@ -210,7 +211,7 @@ class Tab_Former(nn.Module):
         if encoder:
             encoder = encoder
         else:
-            encoder = Encoder(d_model=len(self.cat_cols))
+            encoder = Encoder(d_model=len(self.cat_cols)).self.device()
 
         # Example input tensor
         src_input = self.mapped_cat_col_indices_values_df.values
@@ -222,7 +223,7 @@ class Tab_Former(nn.Module):
 
         torch.manual_seed(self.random_seed)
         for i in np.arange(len(src_input)):
-            new.append(encoder(src_input[i].unsqueeze(dim=0)))
+            new.append(encoder(src_input[i].unsqueeze(dim=0)).self.device())
 
 
         for i in new:
