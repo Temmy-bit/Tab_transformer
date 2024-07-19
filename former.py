@@ -215,7 +215,7 @@ class Tab_Former(nn.Module):
 
         # Example input tensor
         src_input = self.mapped_cat_col_indices_values_df.values
-        src_input = torch.Tensor(src_input)
+        src_input = torch.Tensor(src_input).to(self.device)
         # print("Source Input",src_input)
 
         new = []
@@ -223,7 +223,7 @@ class Tab_Former(nn.Module):
 
         torch.manual_seed(self.random_seed)
         for i in np.arange(len(src_input)):
-            new.append(encoder(src_input[i].unsqueeze(dim=0)).to(self.device()))
+            new.append(encoder(src_input[i].unsqueeze(dim=0)))
 
 
         for i in new:
@@ -385,6 +385,27 @@ def run_model(model,train, target):
             "mean squared error" : model_test_mse.round(4),
             "rmse" : model_test_rmse.round(4)}
             # "Log RMSE" : log_test_rmse.round(4)}
+
+
+def main():
+    df = pd.read_csv('clean_new.csv')
+    tab = Tab_Former(df, target = "price")
+    cat_col, num_col = tab.cat_num_split(df.drop(['index','price'],axis=1))
+    print("cat_col shape",cat_col)
+    print('num_col shape',num_col)
+    feature_map = tab.feature_map()
+    print('feature_map',feature_map)
+    mapp = len(feature_map)
+    print('map',mapp)
+    torch.manual_seed(24)
+    num_layer = 1
+    d_model = len(cat_col)
+    print(d_model)
+    encoder = Encoder(d_model=d_model,num_layers=num_layer,d_ff=128,dropout=0.8)
+    enc_val = tab.encode(encoder=encoder)
+    print('Encoded Values',enc_val)
+if __name__ == "__main__":
+    main()
 
 
 
