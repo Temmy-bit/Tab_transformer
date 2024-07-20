@@ -223,11 +223,11 @@ class Tab_Former(nn.Module):
 
         torch.manual_seed(self.random_seed)
         for i in np.arange(len(src_input)):
-            new.append(encoder(src_input[i].unsqueeze(dim=0)))
+            new.append(encoder(src_input[i].unsqueeze(dim=0)).cpu().detach().numpy())
 
 
         for i in new:
-            enc_values.append(i.squeeze().detach().numpy())
+            enc_values.append(i.squeeze())
 
         enc_values = pd.DataFrame(enc_values)
         # print(enc_values.head())
@@ -238,6 +238,7 @@ class Tab_Former(nn.Module):
         # enc_values = enc_values
 
         return enc_values
+
 
 
     def preprocess(self, scaling,encoded_values):
@@ -270,7 +271,7 @@ class Tab_Former(nn.Module):
                 df[i].fillna((df[i].mean()), inplace=True)
 
         print(df.isnull().sum())
-        shape = self.train_df.shape[0]
+        shape = df[df.columns[0]].shape[0]
         
 
         train = df[:shape] 
