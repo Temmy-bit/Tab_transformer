@@ -30,4 +30,4 @@ The following table summarizes the performance of different models across the th
 
 ### Conclusion
 
-Gradient Boosting with robust scaling showed the best performance in this study, making it a strong choice for price prediction tasks. Other models like CatBoost and LGBMRegressor also performed well, particularly with different scaling methods.
+Gradient Boosting with robust scaling showed the best performance in this study but differed in other studies, making it a strong choice for price prediction tasks. Other models like CatBoost and LGBMRegressor also performed well, particularly with different scaling methods.
